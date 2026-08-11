@@ -5,27 +5,46 @@ $error = '';
 $success = false;
 $error_price = '';
 $existing_tutor = null;
+$error_subject = '';
+$error_experience = '';
+$error_duration = '';
+$error_education = '';
+$error_about = '';
+$error_phone = '';
+$error_location = '';
+$errors = [];
+
+$error_select = '';
+$error_update = '';
+$error_insert = '';
 
 if (empty($_SESSION['auth']) || $_SESSION['role'] !== 'Репетитор') {
     $content .= '<p>Вы не авторизованы. Пройдите авторизацию</p>';
 } else {
     $user_id = $_SESSION['id'];
     $stmt_check = mysqli_prepare($link, "SELECT * FROM tutors WHERE user_id = ?");
+    
+    if ($stmt_check !== false) {
+    
     mysqli_stmt_bind_param($stmt_check, "i", $user_id);
     mysqli_stmt_execute($stmt_check);
     $result_check = mysqli_stmt_get_result($stmt_check);
     $existing_tutor = mysqli_fetch_assoc($result_check);
     mysqli_stmt_close($stmt_check);
-    if (!empty($_POST)) {
-        $subject = trim($_POST['subject']);
-        $experience = trim($_POST['experience']);
-        $price = trim($_POST['price']);
-        $duration = trim($_POST['duration']);
-        $education = trim($_POST['education']);
-        $about = trim($_POST['about']);
-        $phone = trim($_POST['phone']);
-        $location = trim($_POST['location']);
 
+    } else {
+        $error_select = 'Что-то пошло не так, попробуйте еще';
+    }
+    if (!empty($_POST)) {
+        $subject = trim($_POST['subject'] ?? '');
+        $experience = trim($_POST['experience'] ?? '');
+        $price = trim($_POST['price'] ?? '');
+        $duration = trim($_POST['duration'] ?? '');
+        $education = trim($_POST['education'] ?? '');
+        $about = trim($_POST['about'] ?? '');
+        $phone = trim($_POST['phone'] ?? '');
+        $location = trim($_POST['location'] ?? '');
+    
         if (empty($price)) {
             $error_price = 'Вы не ввели стоимость услуги';
         } elseif (!is_numeric($price)) {
@@ -36,25 +55,110 @@ if (empty($_SESSION['auth']) || $_SESSION['role'] !== 'Репетитор') {
             $error_price = 'Стоимость должна быть целым числом';
         }
 
-        if (empty($error_price)) {
+        if (empty($subject)) {
+            $error_subject = 'Вы не указали предмет';
+        } elseif (mb_strlen($subject) < 2) {
+            $error_subject = 'Название предмета слишком короткое';
+        } elseif (mb_strlen($subject) > 100) {
+            $error_subject = 'Название предмета слишком длинное';
+        }
+
+        if (empty($experience)) {
+            $error_experience = 'Вы не указали свой опыт';
+        } elseif (!is_numeric($experience)) {
+            $error_experience = 'Опыт должен быть указан числом';
+        } elseif ($experience < 0) {
+            $error_experience = 'Опыт не может быть меньше нуля';
+        } elseif (str_contains($experience, '.') || str_contains($experience, ',')) {
+            $error_experience = 'Значение должно быть целым числом';
+        }
+
+        if (empty($duration)) {
+            $error_duration = 'Вы не указали длительность занятия';
+        } elseif (!is_numeric($duration)) {
+            $error_duration = 'Значение должно быть числом';
+        } elseif ($duration <= 0) {
+            $error_duration = 'Значение должно быть положительным числом';
+        } elseif (str_contains($duration, '.') || str_contains($duration, ',')) {
+            $error_duration = 'Значение должно быть целым числом';
+        }
+
+        if (empty($education)) {
+            $error_education = 'Вы не указали образование';
+        } elseif (mb_strlen($education) < 3) {
+            $error_education = 'Слишком короткое значение';
+        } elseif (mb_strlen($education) > 100) {
+            $error_education = 'Слишком длинное значение';
+        }
+        if (!empty($about) && mb_strlen($about) < 20) {
+            $error_about = 'Укажите больше информации о себе';
+        }
+    elseif (mb_strlen($about) > 500) {
+            $error_about = 'Слишком много символов';
+        }
+
+        if (empty($phone)) {
+            $error_phone = 'Вы не указали номер телефона';
+        } elseif (!str_starts_with($phone, '+7')) {
+            $error_phone = 'Номер телефона должен начинаться с +7';
+        } else {
+            $phone_num = substr($phone, 2);
+            if (!ctype_digit($phone_num)) {
+                $error_phone = 'Номер телефона должен содержать только цифры';
+            } elseif (strlen($phone_num) !== 10) {
+            $error_phone = 'Номер должен содержать 10 цифр';
+        }
+        }
+
+        if (empty($location)) {
+            $error_location = 'Вы не указали свое местоположение';
+        } elseif (mb_strlen($location) <= 2) {
+            $error_location = 'Значение поля должно быть длиннее';
+        } elseif (mb_strlen($location) > 30) {
+            $error_location = 'Значение поля слишком длинное';
+        }
+
+        $errors = [
+            $error_about,
+            $error_duration,
+            $error_education,
+            $error_experience,
+            $error_location,
+            $error_phone,
+            $error_price,
+            $error_subject
+        ];
+
+        $filtered_error = array_filter($errors);
+
+
+        if (empty($filtered_error)) {
 
             if ($existing_tutor) {
                 $stmt_insert = mysqli_prepare($link, "UPDATE tutors SET subject = ?, experience = ?, price = ?, duration = ?, education = ?, about = ?, phone = ?, location = ? WHERE user_id = ?");
-                mysqli_stmt_bind_param($stmt_insert, "ssssssssi", $subject, $experience, $price, $duration, $education, $about, $phone, $location, $user_id);
+                if ($stmt_insert !== false) {
+                mysqli_stmt_bind_param($stmt_insert, "siiissssi", $subject, $experience, $price, $duration, $education, $about, $phone, $location, $user_id);
                 $success = mysqli_stmt_execute($stmt_insert);
                 mysqli_stmt_close($stmt_insert);
+                } else {
+                    $error_update = 'Что-то пошло нет так, попробуйте еще раз';
+                }
             } else {
-                $stmt_insert = mysqli_prepare($link, "INSERT INTO tutors SET subject = ?, experience = ?, price = ?, duration = ?, education = ?, about = ?, phone = ?, location = ?, user_id = ?");
-                mysqli_stmt_bind_param($stmt_insert, "ssssssssi", $subject, $experience, $price, $duration, $education, $about, $phone, $location, $user_id);
+                $stmt_insert = mysqli_prepare($link, "INSERT INTO tutors (subject, experience, price, duration, education, about, phone, location, user_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)");
+                if ($stmt_insert !== false) {               
+                mysqli_stmt_bind_param($stmt_insert, "siiissssi", $subject, $experience, $price, $duration, $education, $about, $phone, $location, $user_id);
                 $success = mysqli_stmt_execute($stmt_insert);
                 mysqli_stmt_close($stmt_insert);
+                } else {
+                    $error_insert = 'Что-то пошло нет так, попробуйте еще раз';
+                }
             }
 
             if ($success) {
                 $_SESSION['flash'] = 'Анкета успешно сохранена!';
                 header('Location: /tutor-profile');
                 die();
-            } else {
+            } elseif (empty($error_update) && empty($error_insert)) {
                 $error = 'Попробуйте внести изменения еще раз';
             }
         }
@@ -65,71 +169,52 @@ if (!$success && !(empty($_SESSION['auth']) || $_SESSION['role'] !== 'Репет
     if ($error) {
         $content .= '<p>' . $error . '</p>';
     }
-    if ($error_price) {
-        $content .= '<p>' . $error_price . '</p>';
+
+    if ($error_select) {
+        $content .= '<p>' . $error_select . '</p>';
+    }
+
+    if ($error_update) {
+        $content .= '<p>' . $error_update . '</p>';
+    }
+
+    if ($error_insert) {
+        $content .= '<p>' . $error_insert . '</p>';
+    }
+
+
+    foreach ($errors as $error_message) {
+        if (!empty($error_message)) {
+            $content .= '<p>' . $error_message . '</p>';
+        }
     }
 
     if (!empty($_POST)) {
         $price_value = htmlspecialchars($price, ENT_QUOTES);
-    } elseif ($existing_tutor) {
-        $price_value = htmlspecialchars($existing_tutor['price'], ENT_QUOTES);
-    } else {
-        $price_value = '';
-    }
-
-    if (!empty($_POST)) {
         $subject_value = htmlspecialchars($subject, ENT_QUOTES);
-    } elseif ($existing_tutor) {
-        $subject_value = htmlspecialchars($existing_tutor['subject'], ENT_QUOTES);
-    } else {
-        $subject_value = '';
-    }
-
-    if (!empty($_POST)) {
         $experience_value = htmlspecialchars($experience, ENT_QUOTES);
-    } elseif ($existing_tutor) {
-        $experience_value = htmlspecialchars($existing_tutor['experience'], ENT_QUOTES);
-    } else {
-        $experience_value = '';
-    }
-
-    if (!empty($_POST)) {
         $duration_value = htmlspecialchars($duration, ENT_QUOTES);
-    } elseif ($existing_tutor) {
-        $duration_value = htmlspecialchars($existing_tutor['duration'], ENT_QUOTES);
-    } else {
-        $duration_value = '';
-    }
-
-    if (!empty($_POST)) {
         $education_value = htmlspecialchars($education, ENT_QUOTES);
-    } elseif ($existing_tutor) {
-        $education_value = htmlspecialchars($existing_tutor['education'], ENT_QUOTES);
-    } else {
-        $education_value = '';
-    }
-
-    if (!empty($_POST)) {
         $about_value = htmlspecialchars($about, ENT_QUOTES);
-    } elseif ($existing_tutor) {
-        $about_value = htmlspecialchars($existing_tutor['about'], ENT_QUOTES);
-    } else {
-        $about_value = '';
-    }
-
-    if (!empty($_POST)) {
         $phone_value = htmlspecialchars($phone, ENT_QUOTES);
-    } elseif ($existing_tutor) {
-        $phone_value = htmlspecialchars($existing_tutor['phone'], ENT_QUOTES);
-    } else {
-        $phone_value = '';
-    }
-
-    if (!empty($_POST)) {
         $location_value = htmlspecialchars($location, ENT_QUOTES);
     } elseif ($existing_tutor) {
+        $price_value = htmlspecialchars($existing_tutor['price'], ENT_QUOTES);
+        $subject_value = htmlspecialchars($existing_tutor['subject'], ENT_QUOTES);
+        $experience_value = htmlspecialchars($existing_tutor['experience'], ENT_QUOTES);
+        $duration_value = htmlspecialchars($existing_tutor['duration'], ENT_QUOTES);
+        $education_value = htmlspecialchars($existing_tutor['education'], ENT_QUOTES);
+        $about_value = htmlspecialchars($existing_tutor['about'], ENT_QUOTES);
+        $phone_value = htmlspecialchars($existing_tutor['phone'], ENT_QUOTES);
         $location_value = htmlspecialchars($existing_tutor['location'], ENT_QUOTES);
     } else {
+        $price_value = '';
+        $subject_value = '';
+        $experience_value = '';
+        $duration_value = '';
+        $education_value = '';
+        $about_value = '';
+        $phone_value = '';
         $location_value = '';
     }
 
