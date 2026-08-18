@@ -66,91 +66,119 @@ if (!empty($_POST)) {
                                         $birthday_check[0]
                                     );
                                     if ($date_correct) {
+
                                         if ($birthday <= date('Y-m-d')) {
 
-                                        if ($_POST['password'] == $_POST['confirm']) {
-                                            $stmt_check = mysqli_prepare($link, "SELECT * FROM users WHERE login = ?");
-                                            mysqli_stmt_bind_param($stmt_check, "s", $login);
-                                            mysqli_stmt_execute($stmt_check);
-                                            $result_check = mysqli_stmt_get_result($stmt_check);
-                                            $user = mysqli_fetch_assoc($result_check);
-                                            mysqli_stmt_close($stmt_check);
+                                            if ($_POST['password'] == $_POST['confirm']) {
+                                                $stmt_check = mysqli_prepare($link, "SELECT * FROM users WHERE login = ?");
+                                                mysqli_stmt_bind_param($stmt_check, "s", $login);
+                                                mysqli_stmt_execute($stmt_check);
+                                                $result_check = mysqli_stmt_get_result($stmt_check);
+                                                $user = mysqli_fetch_assoc($result_check);
+                                                mysqli_stmt_close($stmt_check);
 
-                                            if (empty($user)) {
-                                                $password = password_hash($_POST['password'], PASSWORD_DEFAULT);
-                                                $stmt_insert = mysqli_prepare($link, "INSERT INTO users SET login = ?, password = ?, email = ?, birthday = ?, name = ?, surname = ?, city = ?, patronymic = ?, role = ?");
-                                                mysqli_stmt_bind_param($stmt_insert, "sssssssss", $login, $password, $email, $birthday, $name, $surname, $city, $patronymic, $role);
-                                                $success = mysqli_stmt_execute($stmt_insert);
-                                                mysqli_stmt_close($stmt_insert);
-
-                                                if ($success) {
-                                                    
-                                                    $_SESSION['flash'] = 'Регистрация прошла успешно!';
-                                                    $_SESSION['auth'] = true;
-                                                    $_SESSION['login'] = $login;
-                                                    header('Location: /');
-                                                    die();
+                                                $email_check = mysqli_prepare($link, "SELECT * FROM users WHERE email = ?");
+                                                mysqli_stmt_bind_param($email_check, "s", $email);
+                                                mysqli_stmt_execute($email_check);  
+                                                $check_result = mysqli_stmt_get_result($email_check);
+                                                $user_email = mysqli_fetch_assoc($check_result);
+                                                mysqli_stmt_close($email_check);
+                                                if (!empty($user)) {
+                                                    $error_login = 'Логин уже занят'; 
+                                                } elseif (!empty($user_email)) {
+                                                    $error_email = 'Электронный адрес уже занят';
+                                                
                                                 } else {
-                                                    $error_db = 'Не удалось сохранить данные, попробуйте еще раз';
-                                                }
+                                                        $password = password_hash($_POST['password'], PASSWORD_DEFAULT);
+                                                        $stmt_insert = mysqli_prepare($link, "INSERT INTO users SET login = ?, password = ?, email = ?, birthday = ?, name = ?, surname = ?, city = ?, patronymic = ?, role = ?");
+                                                        mysqli_stmt_bind_param($stmt_insert, "sssssssss", $login, $password, $email, $birthday, $name, $surname, $city, $patronymic, $role);
+                                                        
+                                                         $success = mysqli_stmt_execute($stmt_insert);
+                                                    if (!$success) {
+                                                        $error_db = 'Не удалось сохранить данные, попробуйте еще раз. Ошибка: ' . mysqli_stmt_error($stmt_insert);
+                                                    }
+                                                    mysqli_stmt_close($stmt_insert);
+
+                                                    if ($success) {
+                                                        $_SESSION['auth'] = true;
+                                                        $_SESSION['id'] = mysqli_insert_id($link);
+                                                        $_SESSION['login'] = $login;
+                                                        $_SESSION['role'] = $role;
+
+
+                                                        if ($role === 'Репетитор') {
+                                                            $_SESSION['flash'] = 'Регистрация прошла успешно! Заполните анкету, чтобы появиться в списке репетиторов';
+                                                            header('Location: /tutor-profile');
+                                                            die();
+                                                        } else {
+                                                            $_SESSION['flash'] = 'Регистрация прошла успешно!';
+                                                            header('Location: /');
+                                                            die();
+                                                        }
+                                                        
+                                                        }                                                
+
+                                                   
+                                                    }
+                                                
                                             } else {
-                                                $error_login = 'Логин уже занят';
+                                                $error_password = 'Пароли не совпадают';
                                             }
                                         } else {
-                                            $error_password = 'Пароли не совпадают';
+                                            $error_birthday = 'Проверьте дату рождения';
                                         }
                                     } else {
-                                        $error_birthday = 'Проверьте дату рождения';
+                                       $error_birthday = 'Такой даты не существует';  
                                     }
                                 } else {
-                                    $error_birthday = 'Такой даты не существует';
-                                   }
-                                } else {
-                                    $error_birthday = 'Дата введена некорректно';
+                                   $error_birthday = 'Дата введена некорректно'; 
                                 }
                             } else {
-                                $error_email = 'Некорректная электронная почта';
+                               $error_email = 'Некорректная электронная почта'; 
                             }
                         } else {
-                            $error_password = 'Пароль должен быть от 6 до 12 символов';
+                            $error_password  = 'Пароль должен быть от 6 до 12 символов'; 
                         }
                     } else {
-                        $error_login = 'Логин может содержать только латинские буквы и цифры';
+                        $error_login = 'Логин может содержать только латинские буквы и цифры'; 
                     }
                 } else {
                     $error_login = 'Логин должен быть от 4 до 10 символов';
                 }
             } else {
-                $error_role = 'Некорректная роль';
+               $error_role = 'Некорректная роль'; 
             }
         } else {
-            if (empty($_POST['name'])) {
-                $error_name = 'Вы не ввели свое имя';
-            }
-            if (empty($_POST['surname'])) {
-                $error_surname = 'Вы не ввели свою фамилию';
-            }
-            if (empty($_POST['city'])) {
-                $error_city = 'Укажите город';
-            }
-            if (empty($_POST['patronymic'])) {
-                $error_patronymic = 'Вы не ввели свое отчество';
-            }
-            if (empty($_POST['login'])) {
-                $error_login = 'Вы не ввели логин';
-            }
-            if (empty($_POST['password'])) {
-                $error_password = 'Вы не ввели пароль';
-            }
-            if (empty($_POST['email'])) {
-                $error_email = 'Вы не ввели электронную почту';
-            }
-            if (empty($_POST['birthday'])) {
-                $error_birthday = 'Вы не указали свою дату рождения';
-            }
+          $error_db = 'Не удалось сохранить данные, попробуйте еще раз'; 
+        }
+    } else {
+        if (empty($_POST['name'])) {
+            $error_name = 'Вы не ввели свое имя';
+        }
+        if (empty($_POST['surname'])) {
+            $error_surname = 'Вы не ввели свою фамилию';
+        }
+        if (empty($_POST['city'])) {
+            $error_city = 'Укажите город';
+        }
+        if (empty($_POST['patronymic'])) {
+            $error_patronymic = 'Вы не ввели свое отчество';
+        }
+        if (empty($_POST['login'])) {
+            $error_login = 'Вы не ввели логин';
+        }
+        if (empty($_POST['password'])) {
+            $error_password = 'Вы не ввели пароль';
+        }
+        if (empty($_POST['email'])) {
+            $error_email = 'Вы не ввели электронную почту';
+        }
+        if (empty($_POST['birthday'])) {
+            $error_birthday = 'Вы не указали свою дату рождения';
         }
     }
 }
+
 
 if (!$success) {
     $content .= '<form action="" method="POST">';

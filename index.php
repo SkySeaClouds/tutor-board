@@ -21,6 +21,8 @@ if (preg_match('#^/$#', $url, $params)) {
     $page = include 'view/tutor-profile.php';
 } elseif (preg_match('#^/logout$#', $url, $params)) {
     $page = include 'view/logout.php';
+} elseif (preg_match('#^/home$#', $url, $params)) {
+    $page = include 'view/home.php';
 }
 
 $layout = file_get_contents('layout.php');

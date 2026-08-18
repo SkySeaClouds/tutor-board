@@ -21,6 +21,11 @@ $error_insert = '';
 if (empty($_SESSION['auth']) || $_SESSION['role'] !== 'Репетитор') {
     $content .= '<p>Вы не авторизованы. Пройдите авторизацию</p>';
 } else {
+    if (!empty($_SESSION['flash'])) {
+        $content .= $_SESSION['flash'];
+        unset($_SESSION['flash']);
+    }
+
     $user_id = $_SESSION['id'];
     $stmt_check = mysqli_prepare($link, "SELECT * FROM tutors WHERE user_id = ?");
 
@@ -52,7 +57,7 @@ if (empty($_SESSION['auth']) || $_SESSION['role'] !== 'Репетитор') {
             $error_price = 'Стоимость должна быть целым числом';
         } elseif ($price <= 0) {
             $error_price = 'Стоимость должна быть положительным числом';
-        } 
+        }
 
         if (empty($subject)) {
             $error_subject = 'Вы не указали предмет';
